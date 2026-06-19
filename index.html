@@ -1,0 +1,1043 @@
+<!--
+  本工具由 柒璃 原创开发
+  创建日期：2025-04-23
+  版权所有，未经授权禁止复制、修改或再分发
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>本地图片加密/解密工具</title>
+    <style>
+        :root {
+            --primary: #4F46E5;
+            --primary-hover: #4338CA;
+            --bg: #F3F4F6;
+            --card-bg: #FFFFFF;
+            --text: #1F2937;
+            --border: #D1D5DB;
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        body {
+            overflow-y: scroll;
+            background-color: var(--bg);
+            color: var(--text);
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .container {
+            background-color: var(--card-bg);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            width: 100%;
+            max-width: 600px;
+        }
+        h1 {
+            text-align: center;
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: var(--primary);
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            background: var(--bg);
+            border-radius: 8px;
+            padding: 4px;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 6px;
+            font-weight: bold;
+            transition: all 0.3s;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        .tab.active {
+            background-color: var(--card-bg);
+            color: var(--primary);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .form-group { margin-bottom: 16px; }
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        input[type="password"], input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 1rem;
+            outline: none;
+        }
+        input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(79,70,229,0.2);
+        }
+        .file-upload {
+            border: 2px dashed var(--border);
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+            overflow-wrap: break-word;
+            word-break: break-all;
+        }
+        .file-upload:hover {
+            border-color: var(--primary);
+            background-color: #F8FAFC;
+        }
+        .file-upload.dragover {
+            border-color: var(--primary);
+            background-color: #EEF2FF;
+            box-shadow: 0 0 0 3px rgba(79,70,229,0.12) inset;
+        }
+        .file-upload input { display: none; }
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-bottom: 10px;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        .btn:hover { background-color: var(--primary-hover); }
+        .btn:disabled { background-color: #9CA3AF; cursor: not-allowed; }
+        .preview-container {
+            margin-top: 20px;
+            text-align: center;
+            display: none;
+        }
+        .preview-container img {
+            max-width: 100%;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            margin-bottom: 10px;
+        }
+        .tips {
+            font-size: 0.8rem;
+            color: #6B7280;
+            margin-top: 10px;
+            line-height: 1.4;
+        }
+        #loading {
+            display: none;
+            text-align: center;
+            color: var(--primary);
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .advanced-toggle {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: #6B7280;
+            margin-bottom: 10px;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .advanced-toggle:hover { color: var(--primary); }
+        .advanced-toggle .arrow {
+            transition: transform 0.3s;
+            display: inline-block;
+            font-size: 0.7rem;
+        }
+        .advanced-toggle .arrow.open { transform: rotate(90deg); }
+        .advanced-panel {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, opacity 0.3s ease;
+            opacity: 0;
+        }
+        .advanced-panel.open { max-height: 200px; opacity: 1; }
+        .auto-detect-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #10B981, #059669);
+            color: white;
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-left: 6px;
+            animation: fadeInBadge 0.5s ease;
+        }
+        @keyframes fadeInBadge {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .password-wrapper { position: relative; }
+        .toggle-pwd-vis {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #9CA3AF;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .toggle-pwd-vis:hover {
+            color: var(--primary);
+        }
+        .switch-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+            padding: 8px 0;
+        }
+        .switch-label {
+            font-size: 0.88rem;
+            font-weight: 500;
+            display: flex;
+            flex-direction: column;
+        }
+        .switch-sublabel {
+            font-size: 0.75rem;
+            color: #9CA3AF;
+            margin-top: 2px;
+        }
+        .switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            inset: 0;
+            background-color: #D1D5DB;
+            border-radius: 24px;
+            transition: 0.3s;
+        }
+        .slider:before {
+            content: "";
+            position: absolute;
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+        .switch input:checked + .slider { background-color: var(--primary); }
+        .switch input:checked + .slider:before { transform: translateX(20px); }
+        .status-msg {
+            display: none;
+            margin: 10px 0;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+        .status-msg.success {
+            display: block;
+            background: #ECFDF5;
+            border: 1px solid #A7F3D0;
+            color: #065F46;
+        }
+        .status-msg.info {
+            display: block;
+            background: #EEF2FF;
+            border: 1px solid #C7D2FE;
+            color: #3730A3;
+        }
+        .site-footer {
+            margin-top: 24px;
+            padding-top: 0;
+            text-align: center;
+            font-size: 0.78rem;
+            color: #86868b;
+            line-height: 1.6;
+        }
+        .footer-divider {
+            height: 1px;
+            background-color: #d2d2d7;
+            margin-bottom: 12px;
+        }
+        .footer-copyright {
+            margin-bottom: 0px;
+        }
+        .footer-meta {
+            color: #a1a1a6;
+        }
+
+        /* ===== iPhone 保存面板 ===== */
+        .save-sheet {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        .save-sheet.open {
+            display: flex;
+        }
+        .save-sheet-mask {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.45);
+        }
+        .save-sheet-panel {
+            position: relative;
+            width: min(92vw, 520px);
+            max-height: 90vh;
+            overflow-y: auto;
+            background: #fff;
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+            z-index: 1;
+        }
+        .save-sheet-title {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+        .save-sheet-desc {
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: #6B7280;
+            margin-bottom: 12px;
+        }
+        .save-sheet-panel img {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: #F3F4F6;
+            margin-bottom: 12px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>本地图片加解密工具</h1>
+
+    <div class="tabs" id="tabBar">
+        <div class="tab" data-mode="encrypt" id="tab-encrypt">🔒 加密模式</div>
+        <div class="tab active" data-mode="decrypt" id="tab-decrypt">🔐 解密模式</div>
+    </div>
+
+    <div class="form-group">
+        <label for="password">
+            安全密码
+            <span id="autoDetectBadge" style="display:none;" class="auto-detect-badge">✨ 已自动识别</span>
+        </label>
+        <div class="password-wrapper">
+            <input type="password" id="password" placeholder="请输入密码..." required maxlength="25">
+            <span class="toggle-pwd-vis" id="togglePwd"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg></span>
+        </div>
+    </div>
+
+    <div class="switch-row" id="embedRow" style="display:none;">
+        <div class="switch-label">
+            将密码嵌入加密图片
+        </div>
+        <label class="switch">
+            <input type="checkbox" id="embedPassword" checked>
+            <span class="slider"></span>
+        </label>
+    </div>
+
+    <div class="advanced-toggle" id="advancedToggle">
+        <span class="arrow" id="advArrow">▶</span>
+        高级选项
+    </div>
+    <div class="advanced-panel" id="advancedPanel">
+        <div class="form-group">
+            <label for="blockSize">分块大小（默认10像素）</label>
+            <input type="number" id="blockSize" value="10" min="2" max="100" step="1"
+                onkeydown="if(['e','E','.','+','-'].includes(event.key))event.preventDefault()">
+            <div style="font-size:0.75rem;color:#9CA3AF;margin-top:4px;">数值越小加密区块越精细，通常无需修改</div>
+        </div>
+    </div>
+
+    <label class="file-upload" id="fileUploadArea">
+        <input type="file" id="imageInput" accept="image/*">
+        <div id="uploadText">点击此处选择图片<br>
+            <span style="font-size:0.8rem;color:#6b7280;">支持手机拍照或相册选择</span>
+        </div>
+    </label>
+
+    <div id="loading">⏳ 正在处理中，请稍候...</div>
+    <div id="statusMsg" class="status-msg"></div>
+
+    <button class="btn" id="processBtn">🔐 开始解密</button>
+
+    <div class="preview-container" id="previewContainer">
+        <h3>处理结果</h3>
+        <img id="outputImage" alt="处理结果">
+        <button class="btn" id="downloadBtn" style="background-color:#10B981;">⬇️ 下载结果图片</button>
+    </div>
+
+    <div class="tips">
+        <b>📌 注意事项：</b><br>
+        1. 基于特定算法加密解密，全程本地运行。您的图片和使用记录不会被保存或泄露。<br>
+        2. 加密后的图片会保存为 PNG 格式。<b>请勿</b>压缩发送或转换为其他格式，否则会因为画质损失导致无法解密还原！<br>
+        3. 开启"嵌入密码"后，密码会存储在加密后的图片之中，加载加密后的图片可自动识别嵌入密码，无需手动输入。<br>
+    </div>
+
+    <footer class="site-footer">
+        <div class="footer-divider"></div>
+        <p class="footer-copyright">Copyright © 2026 柒璃. 保留所有权利。</p>
+        <p class="footer-meta">本地安全 · 隐私至上</p>
+    </footer>
+</div>
+
+<div id="saveSheet" class="save-sheet">
+    <div class="save-sheet-mask" id="saveSheetMask"></div>
+    <div class="save-sheet-panel">
+        <div class="save-sheet-title">保存结果图片</div>
+        <div class="save-sheet-desc">
+            当前 iPhone 浏览器通常不支持网页直接下载。<br>
+            你可以长按下方图片保存，或点击“在新页面打开图片”后再进行保存/分享。
+        </div>
+        <img id="saveSheetImg" alt="待保存图片">
+        <button class="btn" id="openImageBtn" style="background-color:#0EA5E9;">🖼️ 在新页面打开图片</button>
+        <button class="btn" id="closeSaveSheet" style="background-color:#6B7280;">关闭</button>
+    </div>
+</div>
+
+<script>
+let currentMode = 'decrypt';  // 升级：默认解密模式
+let sourceImage = null;
+let fileName = 'image';
+let extractedEmbedInfo = null;
+let lastOutputDataURL = null;  // 保存输出数据用于下载
+
+// ===== 魔术标记与数据格式 =====
+const MAGIC = [0xC7, 0xE3, 0xA5];
+
+function stringToBytes(str) { return Array.from(new TextEncoder().encode(str)); }
+function bytesToString(bytes) { return new TextDecoder().decode(new Uint8Array(bytes)); }
+
+function buildPayload(password, blockSize, origWidth, origHeight) {
+    const pwdBytes = stringToBytes(password);
+    if (pwdBytes.length > 255) throw new Error("密码过长（最多255字节）");
+
+    const data = [];
+    data.push(...MAGIC);
+    data.push((origWidth >> 8) & 0xFF, origWidth & 0xFF);
+    data.push((origHeight >> 8) & 0xFF, origHeight & 0xFF);
+    data.push((blockSize >> 8) & 0xFF, blockSize & 0xFF);
+    data.push(pwdBytes.length);
+    data.push(...pwdBytes);
+    let checksum = 0;
+    for (const b of data) checksum ^= b;
+    data.push(checksum);
+
+    return data;
+}
+
+function encodePayloadToPixelRows(payload, rowWidth) {
+    const pixelsNeeded = Math.ceil(payload.length / 3);
+    const rowsNeeded = Math.ceil(pixelsNeeded / rowWidth);
+    const totalPixels = rowsNeeded * rowWidth;
+
+    const rgba = new Uint8ClampedArray(totalPixels * 4);
+
+    for (let i = 0; i < totalPixels; i++) {
+        rgba[i * 4 + 3] = 255;
+    }
+
+    for (let i = 0; i < payload.length; i++) {
+        const pixelIndex = Math.floor(i / 3);
+        const channel = i % 3;
+        rgba[pixelIndex * 4 + channel] = payload[i];
+    }
+
+    return { rgba, rowsNeeded, totalPixels };
+}
+
+function decodePayloadFromPixels(imageData, startY, width, maxRows) {
+    const bytes = [];
+    for (let row = 0; row < maxRows; row++) {
+        for (let x = 0; x < width; x++) {
+            const idx = ((startY + row) * width + x) * 4;
+            bytes.push(imageData.data[idx]);
+            bytes.push(imageData.data[idx + 1]);
+            bytes.push(imageData.data[idx + 2]);
+        }
+    }
+    return bytes;
+}
+
+function tryExtractFromImage(img) {
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+
+    const maxScanRows = Math.min(10, img.height);
+
+    for (let tryRows = 1; tryRows <= maxScanRows; tryRows++) {
+        const startY = img.height - tryRows;
+        const imgData = ctx.getImageData(0, 0, img.width, img.height);
+        const bytes = decodePayloadFromPixels(imgData, startY, img.width, tryRows);
+
+        if (bytes[0] === MAGIC[0] && bytes[1] === MAGIC[1] && bytes[2] === MAGIC[2]) {
+            const origW = (bytes[3] << 8) | bytes[4];
+            const origH = (bytes[5] << 8) | bytes[6];
+            const blockSize = (bytes[7] << 8) | bytes[8];
+            const pwdLen = bytes[9];
+
+            if (pwdLen === 0 || pwdLen > 200) continue;
+            if (blockSize < 2 || blockSize > 1000) continue;
+            if (origW <= 0 || origH <= 0 || origW > 20000 || origH > 20000) continue;
+
+            const totalLen = 10 + pwdLen + 1;
+            if (totalLen > bytes.length) continue;
+
+            let checksum = 0;
+            for (let i = 0; i < totalLen - 1; i++) checksum ^= bytes[i];
+            if (checksum !== bytes[totalLen - 1]) continue;
+
+            const cols = Math.ceil(origW / blockSize);
+            const rows = Math.ceil(origH / blockSize);
+            const padW = cols * blockSize;
+            const padH = rows * blockSize;
+
+            if (img.width !== padW) continue;
+            if (img.height !== padH + tryRows) continue;
+
+            const pwd = bytesToString(bytes.slice(10, 10 + pwdLen));
+
+            return {
+                password: pwd,
+                blockSize: blockSize,
+                origWidth: origW,
+                origHeight: origH,
+                padWidth: padW,
+                padHeight: padH,
+                extraRows: tryRows
+            };
+        }
+    }
+    return null;
+}
+
+// ===== 哈希与 PRNG =====
+function hashCode(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash = hash & hash;
+    }
+    return hash;
+}
+
+function mulberry32(a) {
+    return function() {
+        var t = a += 0x6D2B79F5;
+        t = Math.imul(t ^ t >>> 15, t | 1);
+        t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    }
+}
+
+function generateShuffleIndices(password, totalBlocks) {
+    const indices = Array.from({length: totalBlocks}, (_, i) => i);
+    const prng = mulberry32(hashCode(password));
+    for (let i = indices.length - 1; i > 0; i--) {
+        const j = Math.floor(prng() * (i + 1));
+        [indices[i], indices[j]] = [indices[j], indices[i]];
+    }
+    return indices;
+}
+
+// ===== Tab 切换 =====
+(function initTabs() {
+    document.querySelectorAll('.tab').forEach(function(tab) {
+        function handle(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const mode = e.currentTarget.getAttribute('data-mode');
+            if (mode) setMode(mode);
+        }
+        tab.addEventListener('click', handle, { passive: false });
+        tab.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            handle(e);
+        }, { passive: false });
+    });
+})();
+
+function setMode(mode) {
+    currentMode = mode;
+    document.getElementById('tab-encrypt').className = mode === 'encrypt' ? 'tab active' : 'tab';
+    document.getElementById('tab-decrypt').className = mode === 'decrypt' ? 'tab active' : 'tab';
+    document.getElementById('processBtn').innerText = mode === 'encrypt' ? '🔒 开始加密' : '🔐 开始解密';
+    document.getElementById('previewContainer').style.display = 'none';
+    document.getElementById('embedRow').style.display = mode === 'encrypt' ? 'flex' : 'none';
+    document.getElementById('autoDetectBadge').style.display = 'none';
+    hideStatus();
+    extractedEmbedInfo = null;
+    lastOutputDataURL = null;
+    hideSaveSheet();
+}
+
+// ===== 高级选项 =====
+document.getElementById('advancedToggle').addEventListener('click', function() {
+    document.getElementById('advancedPanel').classList.toggle('open');
+    document.getElementById('advArrow').classList.toggle('open');
+});
+
+// ===== 密码显隐 =====
+document.getElementById('togglePwd').addEventListener('click', function() {
+    const inp = document.getElementById('password');
+    if (inp.type === 'password') {
+        inp.type = 'text';
+        this.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+    } else {
+        inp.type = 'password';
+        this.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+    }
+});
+
+// ===== 图片上传 / 桌面端拖拽上传 =====
+function handleImageFile(file) {
+    if (!file) return;
+
+    if (!file.type || !file.type.startsWith('image/')) {
+        alert('请上传图片文件');
+        return;
+    }
+
+    fileName = file.name.replace(/\.[^.]+$/, '');
+    document.getElementById('uploadText').innerText = "✅ 已选择: " + file.name;
+    document.getElementById('previewContainer').style.display = 'none';
+    document.getElementById('autoDetectBadge').style.display = 'none';
+    hideStatus();
+    extractedEmbedInfo = null;
+    lastOutputDataURL = null;
+    hideSaveSheet();
+
+    const reader = new FileReader();
+    reader.onload = function(event) {
+        const img = new Image();
+        img.onload = function() {
+            sourceImage = img;
+            if (currentMode === 'decrypt') {
+                const info = tryExtractFromImage(img);
+                if (info) {
+                    extractedEmbedInfo = info;
+                    document.getElementById('password').value = info.password;
+                    document.getElementById('blockSize').value = info.blockSize;
+                    document.getElementById('autoDetectBadge').style.display = 'inline-block';
+                    showStatus('✅ 已从图片中自动识别密码！可直接解密', 'success');
+                } else {
+                    showStatus('💡 未检测到嵌入密码，请手动输入', 'info');
+                }
+            }
+        };
+        img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+document.getElementById('imageInput').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    handleImageFile(file);
+
+    // 允许重复选择同一个文件时也能触发 change
+    e.target.value = '';
+});
+
+(function initDragUpload() {
+    const uploadArea = document.getElementById('fileUploadArea');
+    let dragDepth = 0;
+
+    uploadArea.addEventListener('dragenter', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dragDepth++;
+        uploadArea.classList.add('dragover');
+    });
+
+    uploadArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.dataTransfer) {
+            e.dataTransfer.dropEffect = 'copy';
+        }
+        uploadArea.classList.add('dragover');
+    });
+
+    uploadArea.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dragDepth--;
+        if (dragDepth <= 0) {
+            dragDepth = 0;
+            uploadArea.classList.remove('dragover');
+        }
+    });
+
+    uploadArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dragDepth = 0;
+        uploadArea.classList.remove('dragover');
+
+        const files = e.dataTransfer && e.dataTransfer.files;
+        if (!files || !files.length) return;
+
+        handleImageFile(files[0]);
+    });
+})();
+
+// ===== 触控兼容 =====
+function bindTap(el, handler) {
+    let touchHandled = false;
+
+    el.addEventListener('touchend', function(e) {
+        touchHandled = true;
+        e.preventDefault();
+        handler(e);
+        setTimeout(function() {
+            touchHandled = false;
+        }, 350);
+    }, { passive: false });
+
+    el.addEventListener('click', function(e) {
+        if (touchHandled) {
+            e.preventDefault();
+            return;
+        }
+        handler(e);
+    }, { passive: false });
+}
+
+// ===== 按钮 =====
+bindTap(document.getElementById('processBtn'), startProcess);
+bindTap(document.getElementById('downloadBtn'), downloadImage);
+
+document.getElementById('closeSaveSheet').addEventListener('click', hideSaveSheet);
+document.getElementById('saveSheetMask').addEventListener('click', hideSaveSheet);
+
+document.getElementById('openImageBtn').addEventListener('click', function() {
+    if (!lastOutputDataURL) return;
+
+    const downloadName = fileName + (currentMode === 'encrypt' ? '_encode' : '_decode') + '.png';
+    const win = window.open('', '_blank');
+
+    if (win) {
+        win.document.write(
+            '<!DOCTYPE html><html><head><meta charset="UTF-8">' +
+            '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+            '<title>' + downloadName + '</title></head>' +
+            '<body style="margin:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh;">' +
+            '<img src="' + lastOutputDataURL + '" style="max-width:100%;height:auto;">' +
+            '</body></html>'
+        );
+        win.document.close();
+    } else {
+        alert('新页面被浏览器拦截，请直接长按当前弹窗中的图片保存。');
+    }
+});
+
+// ===== 状态 =====
+function showStatus(msg, type) {
+    const el = document.getElementById('statusMsg');
+    el.textContent = msg;
+    el.className = 'status-msg ' + type;
+}
+function hideStatus() {
+    document.getElementById('statusMsg').className = 'status-msg';
+}
+
+// ===== 下载辅助 =====
+function isIOSLike() {
+    const ua = navigator.userAgent;
+    return /iPad|iPhone|iPod/.test(ua) || (ua.includes('Mac') && navigator.maxTouchPoints > 1);
+}
+
+function dataURLToBlob(dataURL) {
+    const arr = dataURL.split(',');
+    const mimeMatch = arr[0].match(/data:(.*?);base64/);
+    const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+    const byteString = atob(arr[1]);
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+
+    for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
+    }
+    return new Blob([ab], { type: mime });
+}
+
+async function tryNativeShare(dataURL, name) {
+    if (!navigator.share || typeof File === 'undefined') return false;
+
+    try {
+        const blob = dataURLToBlob(dataURL);
+        const file = new File([blob], name, { type: 'image/png' });
+
+        if (navigator.canShare && !navigator.canShare({ files: [file] })) {
+            return false;
+        }
+
+        await navigator.share({
+            files: [file],
+            title: name,
+            text: '请选择“存储到文件”或“保存图像”。'
+        });
+
+        return true;
+    } catch (err) {
+        if (err && err.name === 'AbortError') {
+            showStatus('已取消保存', 'info');
+            return true;
+        }
+        console.warn('系统分享失败，准备使用其它方式', err);
+        return false;
+    }
+}
+
+function showSaveSheet(dataURL) {
+    document.getElementById('saveSheetImg').src = dataURL;
+    document.getElementById('saveSheet').classList.add('open');
+}
+
+function hideSaveSheet() {
+    const el = document.getElementById('saveSheet');
+    if (el) el.classList.remove('open');
+}
+
+// ===== 核心处理 =====
+function startProcess() {
+    hideSaveSheet();
+    if (!sourceImage) return alert("请先上传一张图片！");
+    const pwd = document.getElementById('password').value;
+    if (!pwd) return alert("请输入安全密码！");
+    let blockSize = parseInt(document.getElementById('blockSize').value);
+    if (isNaN(blockSize) || blockSize < 2 || blockSize > 100) blockSize = 10;
+
+    document.getElementById('processBtn').disabled = true;
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('previewContainer').style.display = 'none';
+    hideStatus();
+
+    setTimeout(() => {
+        try {
+            if (currentMode === 'encrypt') {
+                doEncrypt(pwd, blockSize);
+            } else {
+                doDecrypt(pwd, blockSize);
+            }
+        } catch (err) {
+            alert("处理出错: " + err.message);
+            console.error(err);
+        }
+        document.getElementById('processBtn').disabled = false;
+        document.getElementById('loading').style.display = 'none';
+    }, 50);
+}
+
+function doEncrypt(pwd, blockSize) {
+    const origW = sourceImage.width;
+    const origH = sourceImage.height;
+    const cols = Math.ceil(origW / blockSize);
+    const rows = Math.ceil(origH / blockSize);
+    const padW = cols * blockSize;
+    const padH = rows * blockSize;
+    const totalBlocks = cols * rows;
+
+    const srcCanvas = document.createElement('canvas');
+    srcCanvas.width = padW;
+    srcCanvas.height = padH;
+    const srcCtx = srcCanvas.getContext('2d');
+    srcCtx.drawImage(sourceImage, 0, 0);
+
+    const indices = generateShuffleIndices(pwd, totalBlocks);
+
+    const doEmbed = document.getElementById('embedPassword').checked;
+
+    let extraRows = 0;
+    let payloadData = null;
+    if (doEmbed) {
+        payloadData = buildPayload(pwd, blockSize, origW, origH);
+        const pixelsNeeded = Math.ceil(payloadData.length / 3);
+        extraRows = Math.ceil(pixelsNeeded / padW);
+    }
+
+    const outCanvas = document.createElement('canvas');
+    outCanvas.width = padW;
+    outCanvas.height = padH + extraRows;
+    const outCtx = outCanvas.getContext('2d');
+
+    for (let i = 0; i < totalBlocks; i++) {
+        const srcIdx = i;
+        const dstIdx = indices[i];
+        const srcX = (srcIdx % cols) * blockSize;
+        const srcY = Math.floor(srcIdx / cols) * blockSize;
+        const dstX = (dstIdx % cols) * blockSize;
+        const dstY = Math.floor(dstIdx / cols) * blockSize;
+        outCtx.drawImage(srcCanvas, srcX, srcY, blockSize, blockSize, dstX, dstY, blockSize, blockSize);
+    }
+
+    if (doEmbed && payloadData) {
+        const encoded = encodePayloadToPixelRows(payloadData, padW);
+        const imgData = new ImageData(encoded.rgba, padW, encoded.rowsNeeded);
+        outCtx.putImageData(imgData, 0, padH);
+        showStatus('🔒 加密完成！密码存储在加密后的图片中', 'success');
+    } else {
+        showStatus('🔒 加密完成！未嵌入密码', 'info');
+    }
+
+    lastOutputDataURL = outCanvas.toDataURL('image/png');
+    const outImg = document.getElementById('outputImage');
+    outImg.src = lastOutputDataURL;
+    document.getElementById('previewContainer').style.display = 'block';
+}
+
+function doDecrypt(pwd, blockSize) {
+    let padW, padH, origW, origH;
+
+    if (extractedEmbedInfo) {
+        padW = extractedEmbedInfo.padWidth;
+        padH = extractedEmbedInfo.padHeight;
+        origW = extractedEmbedInfo.origWidth;
+        origH = extractedEmbedInfo.origHeight;
+        blockSize = extractedEmbedInfo.blockSize;
+        pwd = extractedEmbedInfo.password;
+    } else {
+        const cols = Math.ceil(sourceImage.width / blockSize);
+        const rows = Math.ceil(sourceImage.height / blockSize);
+        padW = cols * blockSize;
+        padH = rows * blockSize;
+        origW = sourceImage.width;
+        origH = sourceImage.height;
+
+        if (sourceImage.width !== padW || sourceImage.height !== padH) {
+            padW = sourceImage.width;
+            padH = sourceImage.height;
+            origW = padW;
+            origH = padH;
+        }
+    }
+
+    const cols = padW / blockSize;
+    const rows = padH / blockSize;
+    const totalBlocks = cols * rows;
+
+    const srcCanvas = document.createElement('canvas');
+    srcCanvas.width = padW;
+    srcCanvas.height = padH;
+    const srcCtx = srcCanvas.getContext('2d');
+    srcCtx.drawImage(sourceImage, 0, 0, padW, padH, 0, 0, padW, padH);
+
+    const indices = generateShuffleIndices(pwd, totalBlocks);
+
+    const outCanvas = document.createElement('canvas');
+    outCanvas.width = origW;
+    outCanvas.height = origH;
+    const outCtx = outCanvas.getContext('2d');
+
+    for (let i = 0; i < totalBlocks; i++) {
+        const srcIdx = indices[i];
+        const dstIdx = i;
+        const srcX = (srcIdx % cols) * blockSize;
+        const srcY = Math.floor(srcIdx / cols) * blockSize;
+        const dstX = (dstIdx % cols) * blockSize;
+        const dstY = Math.floor(dstIdx / cols) * blockSize;
+        outCtx.drawImage(srcCanvas, srcX, srcY, blockSize, blockSize, dstX, dstY, blockSize, blockSize);
+    }
+
+    showStatus('🔐 解密完成！', 'success');
+
+    lastOutputDataURL = outCanvas.toDataURL('image/png');
+    const outImg = document.getElementById('outputImage');
+    outImg.src = lastOutputDataURL;
+    document.getElementById('previewContainer').style.display = 'block';
+}
+
+// ===== 修复：兼容 iPhone / iOS 浏览器的下载方式 =====
+async function downloadImage() {
+    if (!lastOutputDataURL) return;
+
+    const suffix = currentMode === 'encrypt' ? '_encode' : '_decode';
+    const downloadName = fileName + suffix + '.png';
+    const isIOS = isIOSLike();
+
+    // iPhone / iPad 浏览器：优先调用系统分享
+    // 原因：很多 iOS 浏览器会静默忽略 a[download] + blobURL，不会抛异常
+    if (isIOS) {
+        const shared = await tryNativeShare(lastOutputDataURL, downloadName);
+        if (shared) return;
+
+        showSaveSheet(lastOutputDataURL);
+        showStatus('📱 当前 iPhone 浏览器不支持网页直接下载。请长按弹窗中的图片保存，或点“在新页面打开图片”后再保存。', 'info');
+        return;
+    }
+
+    // 非 iOS：继续使用常规 blob 下载
+    try {
+        const blob = dataURLToBlob(lastOutputDataURL);
+        const blobURL = URL.createObjectURL(blob);
+
+        const link = document.createElement('a');
+        link.href = blobURL;
+        link.download = downloadName;
+        link.rel = 'noopener';
+        link.style.display = 'none';
+
+        document.body.appendChild(link);
+        link.click();
+
+        setTimeout(function() {
+            document.body.removeChild(link);
+            URL.revokeObjectURL(blobURL);
+        }, 1000);
+
+        showStatus('✅ 下载已开始', 'success');
+    } catch (e) {
+        console.warn('常规下载失败，改为显示保存面板', e);
+        showSaveSheet(lastOutputDataURL);
+        showStatus('⚠️ 浏览器不支持直接下载，请长按图片保存', 'info');
+    }
+}
+
+hideStatus();
+</script>
+</body>
+</html>
