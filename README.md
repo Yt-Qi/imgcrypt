@@ -1,6 +1,6 @@
-# Local Image Encrypt / Decrypt Tool
+# Local Image Decrypt Tool
 
-Single-page HTML tool by QiLi for local image encryption and decryption.
+Single-page HTML tool by QiLi for local image decryption.
 
 ## GitHub Pages
 
