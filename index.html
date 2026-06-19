@@ -477,11 +477,29 @@ document.getElementById('togglePwd').addEventListener('click', function() {
 });
 
 // ===== 图片上传 =====
+function getUploadFileTypeInfo(file) {
+    if (!file) return '无';
+
+    const mimeType = file.type ? file.type : '未知 MIME 类型';
+    const fileNameText = file.name ? file.name : '未命名文件';
+    const extensionMatch = file.name ? file.name.match(/\.([^.]+)$/) : null;
+    const extensionText = extensionMatch ? '.' + extensionMatch[1] : '无扩展名';
+
+    return mimeType + '（文件名：' + fileNameText + '，扩展名：' + extensionText + '）';
+}
+
+function showUploadFileError(message, file) {
+    alert(message + '\n上传文件类型：' + getUploadFileTypeInfo(file));
+}
+
 function handleImageFile(file) {
-    if (!file) return;
+    if (!file) {
+        showUploadFileError('未检测到上传文件，请选择图片文件', file);
+        return;
+    }
 
     if (!file.type || !file.type.startsWith('image/')) {
-        alert('请上传图片文件');
+        showUploadFileError('请上传图片文件，当前文件不是图片', file);
         return;
     }
 
@@ -545,7 +563,10 @@ document.getElementById('imageInput').addEventListener('change', function(e) {
         dragDepth = 0;
         uploadArea.classList.remove('dragover');
         const files = e.dataTransfer && e.dataTransfer.files;
-        if (!files || !files.length) return;
+        if (!files || !files.length) {
+            handleImageFile(null);
+            return;
+        }
         handleImageFile(files[0]);
     });
 })();
