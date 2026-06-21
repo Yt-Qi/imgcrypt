@@ -475,6 +475,120 @@ function tryExtractFromImage(img) {
     return null;
 }
 
+function formatByteList(bytes, maxCount) {
+    const count = Math.min(bytes.length, maxCount || bytes.length);
+    const values = [];
+    for (let i = 0; i < count; i++) values.push(bytes[i]);
+    if (bytes.length > count) values.push('...');
+    return values.join(', ');
+}
+
+function diagnoseEmbeddedPayload(img) {
+    const rows = [];
+    const expectedMagic = MAGIC.join(', ');
+
+    try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const imgData = ctx.getImageData(0, 0, img.width, img.height);
+        const maxScanRows = Math.min(10, img.height);
+        let foundMagic = false;
+
+        rows.push(['元数据诊断：期望 magic RGB', expectedMagic]);
+        rows.push(['元数据诊断：扫描范围', '从图片底部向上扫描 1 到 ' + maxScanRows + ' 行']);
+
+        for (let tryRows = 1; tryRows <= maxScanRows; tryRows++) {
+            const startY = img.height - tryRows;
+            const bytes = decodePayloadFromPixels(imgData, startY, img.width, tryRows);
+            const firstBytes = formatByteList(bytes, 16);
+            const firstPixel = bytes.slice(0, 3).join(', ');
+            const magicMatch = bytes[0] === MAGIC[0] && bytes[1] === MAGIC[1] && bytes[2] === MAGIC[2];
+            const prefix = '元数据诊断：底部 ' + tryRows + ' 行';
+
+            rows.push([prefix + ' 起始Y', String(startY)]);
+            rows.push([prefix + ' 首像素RGB', firstPixel || '无']);
+            rows.push([prefix + ' 前16字节RGB流', firstBytes || '无']);
+            rows.push([prefix + ' magic匹配', magicMatch ? '是' : '否']);
+
+            if (!magicMatch) continue;
+            foundMagic = true;
+
+            const origW = (bytes[3] << 8) | bytes[4];
+            const origH = (bytes[5] << 8) | bytes[6];
+            const blockSize = (bytes[7] << 8) | bytes[8];
+            const pwdLen = bytes[9];
+            const totalLen = 10 + pwdLen + 1;
+
+            rows.push([prefix + ' 解析原始宽度', String(origW)]);
+            rows.push([prefix + ' 解析原始高度', String(origH)]);
+            rows.push([prefix + ' 解析分块大小', String(blockSize)]);
+            rows.push([prefix + ' 解析密码字节数', String(pwdLen)]);
+            rows.push([prefix + ' payload所需字节数', totalLen + ' / 当前可读 ' + bytes.length]);
+
+            if (pwdLen === 0 || pwdLen > 200) {
+                rows.push([prefix + ' 失败原因', '密码字节数异常，应为 1-200']);
+                continue;
+            }
+            if (blockSize < 2 || blockSize > 1000) {
+                rows.push([prefix + ' 失败原因', '分块大小异常，应为 2-1000']);
+                continue;
+            }
+            if (origW <= 0 || origH <= 0 || origW > 20000 || origH > 20000) {
+                rows.push([prefix + ' 失败原因', '原始宽高异常']);
+                continue;
+            }
+            if (totalLen > bytes.length) {
+                rows.push([prefix + ' 失败原因', '当前扫描行数不足以容纳完整 payload']);
+                continue;
+            }
+
+            let checksum = 0;
+            for (let i = 0; i < totalLen - 1; i++) checksum ^= bytes[i];
+            const expectedChecksum = bytes[totalLen - 1];
+            rows.push([prefix + ' checksum计算值', String(checksum)]);
+            rows.push([prefix + ' checksum存储值', String(expectedChecksum)]);
+            rows.push([prefix + ' checksum匹配', checksum === expectedChecksum ? '是' : '否']);
+
+            if (checksum !== expectedChecksum) {
+                rows.push([prefix + ' 失败原因', 'checksum不匹配，底部像素数据可能被改写']);
+                continue;
+            }
+
+            const cols = Math.ceil(origW / blockSize);
+            const blockRows = Math.ceil(origH / blockSize);
+            const padW = cols * blockSize;
+            const padH = blockRows * blockSize;
+
+            rows.push([prefix + ' 计算补齐宽度', String(padW)]);
+            rows.push([prefix + ' 计算补齐高度', String(padH)]);
+            rows.push([prefix + ' 当前图片宽度校验', img.width === padW ? '通过' : '失败：当前 ' + img.width + '，期望 ' + padW]);
+            rows.push([prefix + ' 当前图片高度校验', img.height === padH + tryRows ? '通过' : '失败：当前 ' + img.height + '，期望 ' + (padH + tryRows)]);
+
+            if (img.width !== padW) {
+                rows.push([prefix + ' 失败原因', '当前图片宽度和嵌入元数据不一致']);
+                continue;
+            }
+            if (img.height !== padH + tryRows) {
+                rows.push([prefix + ' 失败原因', '当前图片高度和嵌入元数据不一致']);
+                continue;
+            }
+
+            rows.push([prefix + ' 诊断结论', '该扫描行数可成功识别嵌入元数据']);
+        }
+
+        if (!foundMagic) {
+            rows.push(['元数据诊断结论', '底部扫描范围内没有找到 magic。底部像素可能被压缩/转码/重采样/另存为流程改写，或该图片本身未嵌入密码。']);
+        }
+    } catch (err) {
+        rows.push(['元数据诊断错误', err && err.message ? err.message : String(err)]);
+    }
+
+    return rows;
+}
+
 // ===== 哈希与 PRNG =====
 function hashCode(str) {
     let hash = 0;
@@ -661,6 +775,7 @@ function handleImageFile(file) {
         img.onload = function() {
             sourceImage = img;
             const info = tryExtractFromImage(img);
+            const diagnosticRows = diagnoseEmbeddedPayload(img);
             const width = img.naturalWidth || img.width;
             const height = img.naturalHeight || img.height;
             const dataURLHeader = String(dataURL).split(',')[0] || '未知';
@@ -678,6 +793,7 @@ function handleImageFile(file) {
                 ['Data URL 字符数', String(dataURL).length.toLocaleString()],
                 ['是否检测到嵌入元数据', info ? '是' : '否']
             ];
+            imageRows.push.apply(imageRows, diagnosticRows);
             if (info) {
                 imageRows.push(['嵌入原始宽度', info.origWidth + ' px']);
                 imageRows.push(['嵌入原始高度', info.origHeight + ' px']);
